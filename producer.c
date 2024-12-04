@@ -9,24 +9,11 @@ int produce(struct producer *self)
     return rand() % (self->a - self->b + 1) + self->a;
 }
 
-int main(int argc, char const *argv[])
-{
-    srand(time(NULL));
-    if (argc != 4)
-    {
-        printf("Usage: %s <number of producers> <begin> <end>\n", argv[0]);
-        return 1;
-    }
-    int n = atoi(argv[1]);
-    int c = atoi(argv[2]);
-    int d = atoi(argv[3]);
-    
-    while (1) {
-        for (int i = 0; i < n; i++) {
-            struct producer producer = {c, d};
-            printf("Producer %d: %d\n", i, produce(&producer));
-        }
-        sleep(1);
-    }
-    return 0;
+void producer_write_to_file(char *file_name, int item, int status) {
+    FILE *file = fopen(file_name, "a");
+    if (status == 0)
+        fprintf(file, "Unsuccessful production: %d\n", item);
+    else
+        fprintf(file, "Successful production: %d\n", item);
+    fclose(file);
 }

@@ -2,13 +2,13 @@ CC = gcc
 CFLAGS = -Wall -g
 LDFLAGS = -lm
 
-all: consumer producer
+all: main
 
-consumer: consumer.o
-	$(CC) $(CFLAGS) -o consumer consumer.o $(LDFLAGS)
+main: main.o consumer.o producer.o
+	$(CC) $(CFLAGS) -o main main.o consumer.o producer.o $(LDFLAGS)
 
-producer: producer.o
-	$(CC) $(CFLAGS) -o producer producer.o $(LDFLAGS)
+main.o: main.c consumer.h producer.h
+	$(CC) $(CFLAGS) -c main.c -o main.o
 
 consumer.o: consumer.c consumer.h
 	$(CC) $(CFLAGS) -c consumer.c -o consumer.o
@@ -17,5 +17,5 @@ producer.o: producer.c producer.h
 	$(CC) $(CFLAGS) -c producer.c -o producer.o
 
 clean:
-	rm -f *.o consumer producer
+	rm -f *.o main consumer producer
 

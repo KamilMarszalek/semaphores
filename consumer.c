@@ -9,24 +9,11 @@ int consume(struct consumer *self)
     return rand() % (self->d - self->c + 1) + self->c;
 }
 
-int main(int argc, char const *argv[])
-{
-    srand(time(NULL));
-    if (argc != 4)
-    {
-        printf("Usage: %s <number of consumers> <begin> <end>\n", argv[0]);
-        return 1;
-    }
-    int m = atoi(argv[1]);
-    int c = atoi(argv[2]);
-    int d = atoi(argv[3]);
-    
-    while (1) {
-        for (int i = 0; i < m; i++) {
-            struct consumer consumer = {c, d};
-            printf("Consumer %d: %d\n", i, consume(&consumer));
-        }
-        sleep(1);
-    }
-    return 0;
+void consumer_write_to_file(char *file_name, int item, int status) {
+    FILE *file = fopen(file_name, "a");
+    if (status == 0) 
+        fprintf(file, "Unsuccessful consumption: %d\n", item);
+    else 
+        fprintf(file, "Successful consumption: %d\n", item);
+    fclose(file);
 }
