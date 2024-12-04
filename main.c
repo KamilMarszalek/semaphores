@@ -58,6 +58,9 @@ void* producer_thread(void* arg) {
     int thread_index = *((int*)args[2]);
     char log_file_name[256];
     snprintf(log_file_name, 256, "producer_%d.txt", thread_index);
+    free(args[2]);
+    free(args);
+
     while (1) {
         int success = 0;
         int item = produce(producer);
@@ -95,6 +98,9 @@ void* consumer_thread(void* arg) {
     int thread_index = *((int*)args[2]);
     char log_file_name[256];
     snprintf(log_file_name, 256, "consumer_%d.txt", thread_index);
+    free(args[2]);
+    free(args);
+    
     while (1) {
         int success = 0;
 
