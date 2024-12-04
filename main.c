@@ -11,7 +11,7 @@ struct thread {
 };
 
 struct semaphore {
-    int value;
+    volatile int value;
     struct thread *list;
 };
 
