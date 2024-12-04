@@ -37,7 +37,7 @@ struct store {
     struct semaphore *consumer_ready;
 };
 
-void buffer_init(struct store* self, char* file_name, int size) {
+void store_init(struct store* self, char* file_name, int size) {
     FILE *file = fopen(file_name, "w");
     self->file = file_name;
     self->size = size;
@@ -80,7 +80,11 @@ void* producer_thread(void* arg) {
         producer_write_to_file(log_file_name, item, success);
 
         v(store->mutex);
-        v(store->consumer_ready);
+        if (taken + item >= store->size / 2) {
+            v(store->consumer_ready);
+        } else {
+            v(store->producer_ready);
+        }
         sleep(1);
     }
     return NULL;
@@ -113,7 +117,11 @@ void* consumer_thread(void* arg) {
         consumer_write_to_file(log_file_name, to_be_consumed, success);
         
         v(store->mutex);
-        v(store->producer_ready);
+        if (taken - to_be_consumed >= store->size / 2) {
+            v(store->consumer_ready);
+        } else {
+            v(store->producer_ready);
+        }
         sleep(1);
     }
     return NULL;
@@ -133,7 +141,7 @@ int main(int argc, char const *argv[]) {
     int k = atoi(argv[7]);
 
     struct store store;
-    buffer_init(&store, "store.txt", k);
+    store_init(&store, "store.txt", k);
 
     pthread_t producers[n];
     pthread_t consumers[m];
