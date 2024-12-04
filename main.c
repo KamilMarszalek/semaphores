@@ -27,7 +27,7 @@ void v(struct semaphore *self) {
     self->value++;
 }
 
-struct buffer {
+struct store {
     char* file;
     int size;
     int begin;
@@ -37,7 +37,7 @@ struct buffer {
     struct semaphore *consumer_ready;
 };
 
-void buffer_init(struct buffer* self, char* file_name, int size) {
+void buffer_init(struct store* self, char* file_name, int size) {
     FILE *file = fopen(file_name, "w");
     self->file = file_name;
     self->size = size;
@@ -55,7 +55,7 @@ void buffer_init(struct buffer* self, char* file_name, int size) {
 
 void* producer_thread(void* arg) {
     void** args = (void**)arg;
-    struct buffer *buffer = (struct buffer*)args[0];
+    struct store *store = (struct store*)args[0];
     struct producer *producer = (struct producer*)args[1];
     int thread_index = *((int*)args[2]);
     char log_file_name[256];
@@ -64,13 +64,13 @@ void* producer_thread(void* arg) {
         int success = 0;
         int item = produce(producer);
 
-        p(buffer->producer_ready);
-        p(buffer->mutex);
+        p(store->producer_ready);
+        p(store->mutex);
 
-        FILE *file = fopen(buffer->file, "r+");
+        FILE *file = fopen(store->file, "r+");
         int taken;
         fscanf(file, "%d", &taken);
-        if (buffer->size - taken >= item) {
+        if (store->size - taken >= item) {
             success = 1;
             fseek(file, 0, SEEK_SET);
             fprintf(file, "%d\n", taken + item);
@@ -79,8 +79,8 @@ void* producer_thread(void* arg) {
 
         producer_write_to_file(log_file_name, item, success);
 
-        v(buffer->mutex);
-        v(buffer->consumer_ready);
+        v(store->mutex);
+        v(store->consumer_ready);
         sleep(1);
     }
     return NULL;
@@ -88,7 +88,7 @@ void* producer_thread(void* arg) {
 
 void* consumer_thread(void* arg) {
     void** args = (void**)arg;
-    struct buffer *buffer = (struct buffer*)args[0];
+    struct store *store = (struct store*)args[0];
     struct consumer *consumer = (struct consumer*)args[1];
     int thread_index = *((int*)args[2]);
     char log_file_name[256];
@@ -96,10 +96,10 @@ void* consumer_thread(void* arg) {
     while (1) {
         int success = 0;
 
-        p(buffer->consumer_ready);
-        p(buffer->mutex);
+        p(store->consumer_ready);
+        p(store->mutex);
 
-        FILE* file = fopen(buffer->file, "r+");
+        FILE* file = fopen(store->file, "r+");
         int to_be_consumed = consume(consumer);
         int taken;
         fscanf(file, "%d", &taken);
@@ -112,8 +112,8 @@ void* consumer_thread(void* arg) {
 
         consumer_write_to_file(log_file_name, to_be_consumed, success);
         
-        v(buffer->mutex);
-        v(buffer->producer_ready);
+        v(store->mutex);
+        v(store->producer_ready);
         sleep(1);
     }
     return NULL;
@@ -132,8 +132,8 @@ int main(int argc, char const *argv[]) {
     int d = atoi(argv[6]);
     int k = atoi(argv[7]);
 
-    struct buffer buffer;
-    buffer_init(&buffer, "buffer.txt", k);
+    struct store store;
+    buffer_init(&store, "store.txt", k);
 
     pthread_t producers[n];
     pthread_t consumers[m];
@@ -143,7 +143,7 @@ int main(int argc, char const *argv[]) {
 
     for (int i = 0; i < n; i++) {
         void** args = malloc(3 * sizeof(void*));
-        args[0] = &buffer;
+        args[0] = &store;
         args[1] = &prod;
         int* thread_index = malloc(sizeof(int));
         *thread_index = i;
@@ -153,7 +153,7 @@ int main(int argc, char const *argv[]) {
 
     for (int i = 0; i < m; i++) {
         void** args = malloc(3 * sizeof(void*));
-        args[0] = &buffer;
+        args[0] = &store;
         args[1] = &cons;
         int* thread_index = malloc(sizeof(int));
         *thread_index = i;
