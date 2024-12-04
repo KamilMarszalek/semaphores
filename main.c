@@ -6,10 +6,6 @@
 #include <unistd.h>
 #include <stddef.h>
 
-struct thread {
-    pthread_t thread;
-};
-
 struct semaphore {
     volatile int value;
     struct thread *list;
@@ -37,6 +33,8 @@ struct buffer {
     int begin;
     int end;
     struct semaphore *mutex;
+    struct semaphore *producer_ready;
+    struct semaphore *consumer_ready;
 };
 
 void buffer_init(struct buffer* self, char* file_name, int size) {
@@ -46,7 +44,11 @@ void buffer_init(struct buffer* self, char* file_name, int size) {
     self->begin = 0;
     self->end = 0;
     self->mutex = malloc(sizeof(struct semaphore));
+    self->producer_ready = malloc(sizeof(struct semaphore));
+    self->consumer_ready = malloc(sizeof(struct semaphore));
     semaphore_init(self->mutex, 1);
+    semaphore_init(self->producer_ready, 1);
+    semaphore_init(self->consumer_ready, 0);
     fprintf(file, "0\n");
     fclose(file);
 }
@@ -61,7 +63,10 @@ void* producer_thread(void* arg) {
     while (1) {
         int success = 0;
         int item = produce(producer);
+
+        p(buffer->producer_ready);
         p(buffer->mutex);
+
         FILE *file = fopen(buffer->file, "r+");
         int taken;
         fscanf(file, "%d", &taken);
@@ -71,8 +76,11 @@ void* producer_thread(void* arg) {
             fprintf(file, "%d\n", taken + item);
         }
         fclose(file);
+
         producer_write_to_file(log_file_name, item, success);
+
         v(buffer->mutex);
+        v(buffer->consumer_ready);
         sleep(1);
     }
     return NULL;
@@ -87,7 +95,10 @@ void* consumer_thread(void* arg) {
     snprintf(log_file_name, 256, "consumer_%d.txt", thread_index);
     while (1) {
         int success = 0;
+
+        p(buffer->consumer_ready);
         p(buffer->mutex);
+
         FILE* file = fopen(buffer->file, "r+");
         int to_be_consumed = consume(consumer);
         int taken;
@@ -98,8 +109,11 @@ void* consumer_thread(void* arg) {
             fprintf(file, "%d\n", taken - to_be_consumed);
         }
         fclose(file);
+
         consumer_write_to_file(log_file_name, to_be_consumed, success);
+        
         v(buffer->mutex);
+        v(buffer->producer_ready);
         sleep(1);
     }
     return NULL;
