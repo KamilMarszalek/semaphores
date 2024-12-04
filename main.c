@@ -8,23 +8,21 @@
 
 struct semaphore {
     volatile int value;
-    struct thread *list;
 };
 
 void semaphore_init(struct semaphore *self, int value) {
     self->value = value;
-    self->list = NULL;
 }
 
 void p(struct semaphore *self) {
     while (self->value <= 0) {
         sleep(1);
     }
-    self->value--;
+    self->value = 0;
 }
 
 void v(struct semaphore *self) {
-    self->value++;
+    self->value = 1;
 }
 
 struct store {
