@@ -1,11 +1,12 @@
-#include "consumer.h"  
-#include "producer.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <pthread.h>
 #include <unistd.h>
 #include <stddef.h>
 #include <semaphore.h>
+#include "consumer.h"  
+#include "producer.h"
+
 
 struct store {
     char* file;
