@@ -24,7 +24,9 @@ void store_init(struct store* self, char* file_name, int size) {
     self->size = size;
     self->begin = 0;
     self->end = 0;
-    if (sem_init(&self->mutex, 0, 1) != 0 || sem_init(&self->producer_ready, 0, 1) != 0 || sem_init(&self->consumer_ready, 0, 0) != 0) {
+    if (sem_init(&self->mutex, 0, 1) != 0 || 
+        sem_init(&self->producer_ready, 0, 1) != 0 || 
+        sem_init(&self->consumer_ready, 0, 0) != 0) {
         perror("Failed to initialize semaphores");
         exit(EXIT_FAILURE);
     }
