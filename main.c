@@ -159,6 +159,7 @@ int main(int argc, char const *argv[]) {
         printf("Usage: %s <number of producers> <number of consumers> <begin> <end> <begin> <end> <capacity> <timeout>\n", argv[0]);
         return 1;
     }
+    system("rm -f *.txt"); // clear all log files
     int n = atoi(argv[1]);
     int m = atoi(argv[2]);
     int a = atoi(argv[3]);
