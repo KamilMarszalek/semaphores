@@ -4,8 +4,7 @@
 #include <stdio.h>
 #include <unistd.h>
 
-int consume(struct consumer *self)
-{
+int consume(struct consumer *self) {
     return rand() % (self->d - self->c + 1) + self->c;
 }
 

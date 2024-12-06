@@ -4,8 +4,7 @@
 #include <stdio.h>
 #include <unistd.h>
 
-int produce(struct producer *self)
-{
+int produce(struct producer *self) {
     return rand() % (self->a - self->b + 1) + self->a;
 }
 

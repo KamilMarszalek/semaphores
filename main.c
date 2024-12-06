@@ -50,7 +50,7 @@ void* producer_thread(void* arg) {
     int tries = 0;
 
     while (1) {
-        if (tries >= 2){ // to avoid stagnation
+        if (tries >= 2) { // to avoid stagnation
             tries = 0;
             saved = 1;
         }
@@ -109,7 +109,7 @@ void* consumer_thread(void* arg) {
     int tries = 0;
     
     while (1) {
-        if (tries >= 2){ // to avoid stagnation
+        if (tries >= 2) { // to avoid stagnation
             tries = 0;
             saved = 1;
         }
