@@ -47,6 +47,7 @@ void* producer_thread(void* arg) {
     free(args);
     int saved = 0;
     int item = produce(producer);
+    producer_write_prod_info(log_file_name, item);
     int tries = 0;
 
     while (1) {
@@ -56,6 +57,7 @@ void* producer_thread(void* arg) {
         }
         if (saved) {
             item = produce(producer);
+            producer_write_prod_info(log_file_name, item);
             saved = 0;
         }
 
@@ -87,7 +89,7 @@ void* producer_thread(void* arg) {
         } else {
             sem_post(&store->producer_ready);
         }
-        producer_write_to_file(log_file_name, item, saved);
+        producer_write_to_file(log_file_name, item, saved, tries);
         sleep(timeout);
     }
     return NULL;
@@ -106,6 +108,7 @@ void* consumer_thread(void* arg) {
     free(args);
     int saved = 0;
     int to_be_consumed = consume(consumer);
+    consumer_write_cons_info(log_file_name, to_be_consumed);
     int tries = 0;
     
     while (1) {
@@ -115,8 +118,8 @@ void* consumer_thread(void* arg) {
         }
         if (saved) {
             to_be_consumed = consume(consumer);
+            consumer_write_cons_info(log_file_name, to_be_consumed);
             saved = 0;
-            tries = 0;
         }
 
         sem_wait(&store->consumer_ready);
@@ -148,7 +151,7 @@ void* consumer_thread(void* arg) {
         } else {
             sem_post(&store->consumer_ready);
         }
-        consumer_write_to_file(log_file_name, to_be_consumed, saved);
+        consumer_write_to_file(log_file_name, to_be_consumed, saved, tries);
         sleep(timeout);
     }
     return NULL;
