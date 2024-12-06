@@ -44,16 +44,17 @@ void* producer_thread(void* arg) {
     free(args);
     int saved = 0;
     int item = produce(producer);
+    int tries = 0;
 
     while (1) {
-        if (producer->counter >= 2){ // to avoid stagnation
-            producer->counter = 0;
+        if (tries >= 2){ // to avoid stagnation
+            tries = 0;
             saved = 1;
         }
         if (saved) {
             item = produce(producer);
             saved = 0;
-            producer->counter = 0;
+            tries = 0;
         }
 
         sem_wait(&store->producer_ready);
@@ -67,10 +68,10 @@ void* producer_thread(void* arg) {
             fseek(file, 0, SEEK_SET);
             fprintf(file, "%d\n", taken + item);
             printf("Producer %d: loaded %d || Amount in store: %d\n", thread_index, item, taken + item);
-            producer->counter = 0;
+            tries = 0;
         } else {
-            producer->counter++;
-            printf("Producer %d: failed to load %d: try: %d || Amount in store: %d\n", thread_index, item, producer->counter, taken);
+            tries++;
+            printf("Producer %d: failed to load %d: try: %d || Amount in store: %d\n", thread_index, item, tries, taken);
         }
         fclose(file);
 
@@ -104,16 +105,17 @@ void* consumer_thread(void* arg) {
     free(args);
     int saved = 0;
     int to_be_consumed = consume(consumer);
+    int tries = 0;
     
     while (1) {
-        if (consumer->counter >= 2){ // to avoid stagnation
-            consumer->counter = 0;
+        if (tries >= 2){ // to avoid stagnation
+            tries = 0;
             saved = 1;
         }
         if (saved) {
             to_be_consumed = consume(consumer);
             saved = 0;
-            consumer->counter = 0;
+            tries = 0;
         }
 
         sem_wait(&store->consumer_ready);
@@ -128,10 +130,10 @@ void* consumer_thread(void* arg) {
             fseek(file, 0, SEEK_SET);
             fprintf(file, "%d\n", taken - to_be_consumed);
             printf("Consumer %d: consumes %d || Amount in store: %d\n", thread_index, to_be_consumed, taken - to_be_consumed);
-            consumer->counter = 0;
+            tries = 0;
         } else {
-            consumer->counter++;
-            printf("Consumer %d: failed to consume %d: try: %d || Amount in store: %d\n", thread_index, to_be_consumed, consumer->counter, taken);
+            tries++;
+            printf("Consumer %d: failed to consume %d: try: %d || Amount in store: %d\n", thread_index, to_be_consumed, tries, taken);
         }
         fclose(file);
 
@@ -172,8 +174,8 @@ int main(int argc, char const *argv[]) {
     pthread_t producers[n];
     pthread_t consumers[m];
 
-    struct producer prod = {a, b, 0};
-    struct consumer cons = {c, d, 0};
+    struct producer prod = {a, b};
+    struct consumer cons = {c, d};
 
     for (int i = 0; i < n; i++) {
         void** args = malloc(4 * sizeof(void*));

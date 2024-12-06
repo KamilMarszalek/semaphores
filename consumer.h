@@ -4,7 +4,6 @@ struct consumer
 {
     int c; //begin of range
     int d; //end of range
-    int counter; // counter of tries
 };
 
 int consume(struct consumer *self);
