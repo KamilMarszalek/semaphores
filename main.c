@@ -54,7 +54,6 @@ void* producer_thread(void* arg) {
         if (saved) {
             item = produce(producer);
             saved = 0;
-            tries = 0;
         }
 
         sem_wait(&store->producer_ready);
@@ -70,12 +69,10 @@ void* producer_thread(void* arg) {
             printf("Producer %d: loaded %d || Amount in store: %d\n", thread_index, item, taken + item);
             tries = 0;
         } else {
-            tries++;
-            printf("Producer %d: failed to load %d: try: %d || Amount in store: %d\n", thread_index, item, tries, taken);
+            ++tries;
+            printf("Producer %d: failed to load %d || Amount in store: %d\n", thread_index, item, taken);
         }
         fclose(file);
-
-        producer_write_to_file(log_file_name, item, saved);
         sleep(timeout);
         sem_post(&store->mutex);
         if (saved) {
@@ -87,6 +84,7 @@ void* producer_thread(void* arg) {
         } else {
             sem_post(&store->producer_ready);
         }
+        producer_write_to_file(log_file_name, item, saved);
         sleep(timeout);
     }
     return NULL;
@@ -133,11 +131,9 @@ void* consumer_thread(void* arg) {
             tries = 0;
         } else {
             tries++;
-            printf("Consumer %d: failed to consume %d: try: %d || Amount in store: %d\n", thread_index, to_be_consumed, tries, taken);
+            printf("Consumer %d: failed to consume %d || Amount in store: %d\n", thread_index, to_be_consumed, taken);
         }
         fclose(file);
-
-        consumer_write_to_file(log_file_name, to_be_consumed, saved);
         sleep(timeout);
         sem_post(&store->mutex);
         if (saved) {
@@ -149,6 +145,7 @@ void* consumer_thread(void* arg) {
         } else {
             sem_post(&store->consumer_ready);
         }
+        consumer_write_to_file(log_file_name, to_be_consumed, saved);
         sleep(timeout);
     }
     return NULL;
