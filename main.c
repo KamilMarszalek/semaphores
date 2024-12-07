@@ -37,6 +37,21 @@ void store_init(struct store* self, char* file_name, int size) {
     fclose(file);
 }
 
+int read_store_state(const char* file_name) {
+    FILE *file = fopen(file_name, "r");
+    int state;
+    fscanf(file, "%d", &state);
+    fclose(file);
+    return state;
+}
+
+void write_store_state(const char* file_name, int state) {
+    FILE *file = fopen(file_name, "w");
+    fprintf(file, "%d\n", state);
+    fflush(file);
+    fclose(file);
+}
+
 void* producer_thread(void* arg) {
     void** args = (void**)arg;
     struct store *store = (struct store*)args[0];
@@ -59,10 +74,8 @@ void* producer_thread(void* arg) {
             saved = 0;
         }
         sem_wait(&store->mutex);
-        FILE *file = fopen(store->file, "r+");
         int taken;
-        fscanf(file, "%d", &taken);
-        fclose(file);
+        taken = read_store_state(store->file);
         printf("Producer %d: tries to load: %d\n", thread_index, item);
         sleep(timeout);
         if (store->size - taken < item || taken > store->size / 2) {
@@ -85,20 +98,16 @@ void* producer_thread(void* arg) {
             someone_waits_on_producer += 1;
             sem_wait(&store->producer_ready);
             someone_waits_on_producer -= 1;
-            file = fopen(store->file, "r+");
-            fscanf(file, "%d", &taken);
+            taken = read_store_state(store->file);
             if (store->size - taken < item) {
                 sem_post(&store->mutex);
                 continue;
             }
         }
-        file = fopen(store->file, "r+");
-        fscanf(file, "%d", &taken);
+        taken = read_store_state(store->file);
         saved = 1;
-        fseek(file, 0, SEEK_SET);
-        fprintf(file, "%d\n", taken + item);
+        write_store_state(store->file, taken + item);
         printf("Producer %d: loaded %d || Amount in store: %d\n", thread_index, item, taken + item);
-        fclose(file);
         printf("post status: %d\n", sem_post(&store->mutex));
         sleep(timeout);
         producer_write_to_file(log_file_name, item, saved, taken + item);
@@ -129,10 +138,8 @@ void* consumer_thread(void* arg) {
         }
 
         sem_wait(&store->mutex);
-        FILE* file = fopen(store->file, "r+");
         int taken;
-        fscanf(file, "%d", &taken);
-        fclose(file);
+        taken = read_store_state(store->file);
         printf("Consumer %d: tries to consume: %d\n", thread_index, to_be_consumed);
         sleep(timeout);
         if (taken < to_be_consumed || taken <= store->size / 2) {
@@ -155,20 +162,16 @@ void* consumer_thread(void* arg) {
             someone_waits_on_consumer += 1;
             sem_wait(&store->consumer_ready);
             someone_waits_on_consumer -= 1;
-            file = fopen(store->file, "r+");
-            fscanf(file, "%d", &taken); 
+            taken = read_store_state(store->file);
             if (taken < to_be_consumed) {
                 sem_post(&store->mutex);
                 continue;
             }
         }
-        file = fopen(store->file, "r+");
-        fscanf(file, "%d", &taken);
+        taken = read_store_state(store->file);
         saved = 1;
-        fseek(file, 0, SEEK_SET);
-        fprintf(file, "%d\n", taken - to_be_consumed);
+        write_store_state(store->file, taken - to_be_consumed);
         printf("Consumer %d: consumes %d || Amount in store: %d\n", thread_index, to_be_consumed, taken - to_be_consumed);
-        fclose(file);
         sleep(timeout);
         printf("post status: %d\n", sem_post(&store->mutex));
         sleep(timeout);
