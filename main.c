@@ -48,13 +48,8 @@ void* producer_thread(void* arg) {
     int saved = 0;
     int item = produce(producer);
     producer_write_prod_info(log_file_name, item);
-    int tries = 0;
 
     while (1) {
-        if (tries >= 2) { // to avoid stagnation
-            tries = 0;
-            saved = 1;
-        }
         if (saved) {
             item = produce(producer);
             producer_write_prod_info(log_file_name, item);
@@ -72,9 +67,7 @@ void* producer_thread(void* arg) {
             fseek(file, 0, SEEK_SET);
             fprintf(file, "%d\n", taken + item);
             printf("Producer %d: loaded %d || Amount in store: %d\n", thread_index, item, taken + item);
-            tries = 0;
         } else {
-            ++tries;
             printf("Producer %d: failed to load %d || Amount in store: %d\n", thread_index, item, taken);
         }
         fclose(file);
@@ -86,10 +79,11 @@ void* producer_thread(void* arg) {
             } else {
                 sem_post(&store->producer_ready);
             }
+            producer_write_to_file(log_file_name, item, saved, taken + item);
         } else {
             sem_post(&store->producer_ready);
+            producer_write_to_file(log_file_name, item, saved, taken);
         }
-        producer_write_to_file(log_file_name, item, saved, tries);
         sleep(timeout);
     }
     return NULL;
@@ -109,13 +103,8 @@ void* consumer_thread(void* arg) {
     int saved = 0;
     int to_be_consumed = consume(consumer);
     consumer_write_cons_info(log_file_name, to_be_consumed);
-    int tries = 0;
     
     while (1) {
-        if (tries >= 2) { // to avoid stagnation
-            tries = 0;
-            saved = 1;
-        }
         if (saved) {
             to_be_consumed = consume(consumer);
             consumer_write_cons_info(log_file_name, to_be_consumed);
@@ -134,9 +123,7 @@ void* consumer_thread(void* arg) {
             fseek(file, 0, SEEK_SET);
             fprintf(file, "%d\n", taken - to_be_consumed);
             printf("Consumer %d: consumes %d || Amount in store: %d\n", thread_index, to_be_consumed, taken - to_be_consumed);
-            tries = 0;
         } else {
-            tries++;
             printf("Consumer %d: failed to consume %d || Amount in store: %d\n", thread_index, to_be_consumed, taken);
         }
         fclose(file);
@@ -148,10 +135,11 @@ void* consumer_thread(void* arg) {
             } else {
                 sem_post(&store->consumer_ready);
             }
+            consumer_write_to_file(log_file_name, to_be_consumed, saved, taken - to_be_consumed);
         } else {
             sem_post(&store->consumer_ready);
+            consumer_write_to_file(log_file_name, to_be_consumed, saved, taken);
         }
-        consumer_write_to_file(log_file_name, to_be_consumed, saved, tries);
         sleep(timeout);
     }
     return NULL;
