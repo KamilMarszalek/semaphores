@@ -8,6 +8,9 @@
 #include "producer.h"
 
 
+int someone_waits_on_producer = 0;
+int someone_waits_on_consumer = 0;
+
 struct store {
     char* file;
     int size;
@@ -25,7 +28,7 @@ void store_init(struct store* self, char* file_name, int size) {
     self->begin = 0;
     self->end = 0;
     if (sem_init(&self->mutex, 0, 1) != 0 || 
-        sem_init(&self->producer_ready, 0, 1) != 0 || 
+        sem_init(&self->producer_ready, 0, 0) != 0 || 
         sem_init(&self->consumer_ready, 0, 0) != 0) {
         perror("Failed to initialize semaphores");
         exit(EXIT_FAILURE);
@@ -55,36 +58,50 @@ void* producer_thread(void* arg) {
             producer_write_prod_info(log_file_name, item);
             saved = 0;
         }
-
-        sem_wait(&store->producer_ready);
         sem_wait(&store->mutex);
-
         FILE *file = fopen(store->file, "r+");
         int taken;
         fscanf(file, "%d", &taken);
-        if (store->size - taken >= item) {
-            saved = 1;
-            fseek(file, 0, SEEK_SET);
-            fprintf(file, "%d\n", taken + item);
-            printf("Producer %d: loaded %d || Amount in store: %d\n", thread_index, item, taken + item);
-        } else {
-            printf("Producer %d: failed to load %d || Amount in store: %d\n", thread_index, item, taken);
-        }
         fclose(file);
+        printf("Producer %d: tries to load: %d\n", thread_index, item);
         sleep(timeout);
-        sem_post(&store->mutex);
-        if (saved) {
-            if (taken + item > store->size / 2) {
-                sem_post(&store->consumer_ready);
+        if (store->size - taken < item || taken > store->size / 2) {
+            printf("Producer %d: failed to load %d || Amount in store: %d\n", thread_index, item, taken);
+            sleep(timeout);
+            if (taken > store->size / 2) {
+                if (someone_waits_on_consumer > 0) {
+                    printf("post status: %d consumer: %d producer: %d\n", sem_post(&store->consumer_ready), someone_waits_on_consumer, someone_waits_on_producer);
+                } else {
+                    printf("post status: %d consumer: %d producer: %d\n", sem_post(&store->mutex), someone_waits_on_consumer, someone_waits_on_producer);
+                }
             } else {
-                sem_post(&store->producer_ready);
+                if (someone_waits_on_producer > 0) {
+                    printf("post status: %d consumer: %d producer: %d\n", sem_post(&store -> producer_ready), someone_waits_on_consumer, someone_waits_on_producer);
+                } else {
+                    printf("post status: %d consumer: %d producer: %d\n", sem_post(&store->mutex), someone_waits_on_consumer, someone_waits_on_producer);
+                }
             }
-            producer_write_to_file(log_file_name, item, saved, taken + item);
-        } else {
-            sem_post(&store->producer_ready);
             producer_write_to_file(log_file_name, item, saved, taken);
+            someone_waits_on_producer += 1;
+            sem_wait(&store->producer_ready);
+            someone_waits_on_producer -= 1;
+            file = fopen(store->file, "r+");
+            fscanf(file, "%d", &taken);
+            if (store->size - taken < item) {
+                sem_post(&store->mutex);
+                continue;
+            }
         }
+        file = fopen(store->file, "r+");
+        fscanf(file, "%d", &taken);
+        saved = 1;
+        fseek(file, 0, SEEK_SET);
+        fprintf(file, "%d\n", taken + item);
+        printf("Producer %d: loaded %d || Amount in store: %d\n", thread_index, item, taken + item);
+        fclose(file);
+        printf("post status: %d\n", sem_post(&store->mutex));
         sleep(timeout);
+        producer_write_to_file(log_file_name, item, saved, taken + item);
     }
     return NULL;
 }
@@ -111,36 +128,51 @@ void* consumer_thread(void* arg) {
             saved = 0;
         }
 
-        sem_wait(&store->consumer_ready);
         sem_wait(&store->mutex);
-
         FILE* file = fopen(store->file, "r+");
-
         int taken;
         fscanf(file, "%d", &taken);
-        if (taken >= to_be_consumed) {
-            saved = 1;
-            fseek(file, 0, SEEK_SET);
-            fprintf(file, "%d\n", taken - to_be_consumed);
-            printf("Consumer %d: consumes %d || Amount in store: %d\n", thread_index, to_be_consumed, taken - to_be_consumed);
-        } else {
+        fclose(file);
+        printf("Consumer %d: tries to consume: %d\n", thread_index, to_be_consumed);
+        sleep(timeout);
+        if (taken < to_be_consumed || taken <= store->size / 2) {
             printf("Consumer %d: failed to consume %d || Amount in store: %d\n", thread_index, to_be_consumed, taken);
+            sleep(timeout);
+            if (taken > store->size / 2) {
+                if (someone_waits_on_consumer > 0) {
+                    printf("post status: %d consumer: %d producer: %d\n", sem_post(&store->consumer_ready), someone_waits_on_consumer, someone_waits_on_producer);
+                } else {
+                    printf("post status: %d consumer: %d producer: %d\n", sem_post(&store->mutex), someone_waits_on_consumer, someone_waits_on_producer);
+                }
+            } else {
+                if (someone_waits_on_producer > 0) {
+                    printf("post status: %d consumer: %d producer: %d\n", sem_post(&store -> producer_ready), someone_waits_on_consumer, someone_waits_on_producer);
+                } else {
+                    printf("post status: %d consumer: %d producer: %d\n", sem_post(&store->mutex), someone_waits_on_consumer, someone_waits_on_producer);
+                }
+            }
+            consumer_write_to_file(log_file_name, to_be_consumed, saved, taken);
+            someone_waits_on_consumer += 1;
+            sem_wait(&store->consumer_ready);
+            someone_waits_on_consumer -= 1;
+            file = fopen(store->file, "r+");
+            fscanf(file, "%d", &taken); 
+            if (taken < to_be_consumed) {
+                sem_post(&store->mutex);
+                continue;
+            }
         }
+        file = fopen(store->file, "r+");
+        fscanf(file, "%d", &taken);
+        saved = 1;
+        fseek(file, 0, SEEK_SET);
+        fprintf(file, "%d\n", taken - to_be_consumed);
+        printf("Consumer %d: consumes %d || Amount in store: %d\n", thread_index, to_be_consumed, taken - to_be_consumed);
         fclose(file);
         sleep(timeout);
-        sem_post(&store->mutex);
-        if (saved) {
-            if (taken - to_be_consumed < store->size / 2) {
-                sem_post(&store->producer_ready);
-            } else {
-                sem_post(&store->consumer_ready);
-            }
-            consumer_write_to_file(log_file_name, to_be_consumed, saved, taken - to_be_consumed);
-        } else {
-            sem_post(&store->consumer_ready);
-            consumer_write_to_file(log_file_name, to_be_consumed, saved, taken);
-        }
+        printf("post status: %d\n", sem_post(&store->mutex));
         sleep(timeout);
+        consumer_write_to_file(log_file_name, to_be_consumed, saved, taken - to_be_consumed);
     }
     return NULL;
 }
