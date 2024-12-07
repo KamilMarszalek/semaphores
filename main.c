@@ -63,6 +63,7 @@ void* producer_thread(void* arg) {
     free(args[2]);
     free(args[3]);
     free(args);
+
     int saved = 0;
     int item = produce(producer);
     producer_write_prod_info(log_file_name, item);
@@ -74,33 +75,27 @@ void* producer_thread(void* arg) {
             saved = 0;
         }
         sem_wait(&store->mutex);
-        int taken;
-        taken = read_store_state(store->file);
+        int taken = read_store_state(store->file);
+        sleep(timeout);
         printf("Producer %d: tries to load: %d\n", thread_index, item);
         sleep(timeout);
-        if (store->size - taken < item || taken > store->size / 2) {
+
+        if (store->size - taken < item) {
             printf("Producer %d: failed to load %d || Amount in store: %d\n", thread_index, item, taken);
-            sleep(timeout);
-            if (taken > store->size / 2) {
-                if (someone_waits_on_consumer > 0) {
-                    printf("post status: %d consumer: %d producer: %d\n", sem_post(&store->consumer_ready), someone_waits_on_consumer, someone_waits_on_producer);
-                } else {
-                    printf("post status: %d consumer: %d producer: %d\n", sem_post(&store->mutex), someone_waits_on_consumer, someone_waits_on_producer);
-                }
-            } else {
-                if (someone_waits_on_producer > 0) {
-                    printf("post status: %d consumer: %d producer: %d\n", sem_post(&store -> producer_ready), someone_waits_on_consumer, someone_waits_on_producer);
-                } else {
-                    printf("post status: %d consumer: %d producer: %d\n", sem_post(&store->mutex), someone_waits_on_consumer, someone_waits_on_producer);
-                }
-            }
             producer_write_to_file(log_file_name, item, saved, taken);
-            someone_waits_on_producer += 1;
-            sem_wait(&store->producer_ready);
-            someone_waits_on_producer -= 1;
-            taken = read_store_state(store->file);
-            if (store->size - taken < item) {
+            sleep(timeout);
+            someone_waits_on_producer++;
+            if (someone_waits_on_consumer > 0) {
+                sem_post(&store -> consumer_ready);
+            } else {
                 sem_post(&store->mutex);
+            }
+            sem_wait(&store->producer_ready);
+            someone_waits_on_producer--;
+            taken = read_store_state(store->file);
+            if (taken + item > store->size) {
+                sem_post(&store->mutex);
+                sleep(timeout);
                 continue;
             }
         }
@@ -108,9 +103,14 @@ void* producer_thread(void* arg) {
         saved = 1;
         write_store_state(store->file, taken + item);
         printf("Producer %d: loaded %d || Amount in store: %d\n", thread_index, item, taken + item);
-        printf("post status: %d\n", sem_post(&store->mutex));
-        sleep(timeout);
         producer_write_to_file(log_file_name, item, saved, taken + item);
+        sleep(timeout);
+        if (someone_waits_on_consumer > 0) {
+            sem_post(&store->consumer_ready);
+        } else {
+            sem_post(&store->mutex);
+        }
+        sleep(timeout);
     }
     return NULL;
 }
@@ -126,6 +126,7 @@ void* consumer_thread(void* arg) {
     free(args[2]);
     free(args[3]);
     free(args);
+
     int saved = 0;
     int to_be_consumed = consume(consumer);
     consumer_write_cons_info(log_file_name, to_be_consumed);
@@ -138,44 +139,43 @@ void* consumer_thread(void* arg) {
         }
 
         sem_wait(&store->mutex);
-        int taken;
-        taken = read_store_state(store->file);
+        int taken = read_store_state(store->file);
+        
         printf("Consumer %d: tries to consume: %d\n", thread_index, to_be_consumed);
         sleep(timeout);
-        if (taken < to_be_consumed || taken <= store->size / 2) {
+
+        if (taken < to_be_consumed) {
             printf("Consumer %d: failed to consume %d || Amount in store: %d\n", thread_index, to_be_consumed, taken);
-            sleep(timeout);
-            if (taken > store->size / 2) {
-                if (someone_waits_on_consumer > 0) {
-                    printf("post status: %d consumer: %d producer: %d\n", sem_post(&store->consumer_ready), someone_waits_on_consumer, someone_waits_on_producer);
-                } else {
-                    printf("post status: %d consumer: %d producer: %d\n", sem_post(&store->mutex), someone_waits_on_consumer, someone_waits_on_producer);
-                }
-            } else {
-                if (someone_waits_on_producer > 0) {
-                    printf("post status: %d consumer: %d producer: %d\n", sem_post(&store -> producer_ready), someone_waits_on_consumer, someone_waits_on_producer);
-                } else {
-                    printf("post status: %d consumer: %d producer: %d\n", sem_post(&store->mutex), someone_waits_on_consumer, someone_waits_on_producer);
-                }
-            }
             consumer_write_to_file(log_file_name, to_be_consumed, saved, taken);
-            someone_waits_on_consumer += 1;
+            sleep(timeout);
+            someone_waits_on_consumer++;
+            if (someone_waits_on_producer > 0) {
+                sem_post(&store->producer_ready);
+            } else {
+                sem_post(&store->mutex);
+            }
             sem_wait(&store->consumer_ready);
-            someone_waits_on_consumer -= 1;
+            someone_waits_on_consumer--;
             taken = read_store_state(store->file);
             if (taken < to_be_consumed) {
                 sem_post(&store->mutex);
+                sleep(timeout);
                 continue;
             }
         }
         taken = read_store_state(store->file);
         saved = 1;
+        consumer_write_to_file(log_file_name, to_be_consumed, saved, taken - to_be_consumed);
         write_store_state(store->file, taken - to_be_consumed);
         printf("Consumer %d: consumes %d || Amount in store: %d\n", thread_index, to_be_consumed, taken - to_be_consumed);
         sleep(timeout);
-        printf("post status: %d\n", sem_post(&store->mutex));
+        if (someone_waits_on_producer > 0) {
+            sem_post(&store->producer_ready);
+        } else {
+            sem_post(&store->mutex);
+        }
         sleep(timeout);
-        consumer_write_to_file(log_file_name, to_be_consumed, saved, taken - to_be_consumed);
+        
     }
     return NULL;
 }
