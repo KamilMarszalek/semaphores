@@ -5,7 +5,7 @@
 #include <unistd.h>
 
 int produce(struct producer *self) {
-    return rand() % (self->a - self->b + 1) + self->a;
+    return rand() % (self->b - self->a + 1) + self->a;
 }
 
 void producer_write_to_file(char *file_name, int item, int status, int state_of_store) {
