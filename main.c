@@ -8,8 +8,8 @@
 #include "producer.h"
 
 
-int someone_waits_on_producer = 0;
-int someone_waits_on_consumer = 0;
+int is_producer_waiting = 0;
+int is_consumer_waiting = 0;
 
 struct store {
     char* file;
@@ -17,8 +17,8 @@ struct store {
     int begin;
     int end;
     sem_t mutex;
-    sem_t producer_ready;
-    sem_t consumer_ready;
+    sem_t producer;
+    sem_t consumer;
 };
 
 void store_init(struct store* self, char* file_name, int size) {
@@ -28,8 +28,8 @@ void store_init(struct store* self, char* file_name, int size) {
     self->begin = 0;
     self->end = 0;
     if (sem_init(&self->mutex, 0, 1) != 0 || 
-        sem_init(&self->producer_ready, 0, 0) != 0 || 
-        sem_init(&self->consumer_ready, 0, 0) != 0) {
+        sem_init(&self->producer, 0, 0) != 0 || 
+        sem_init(&self->consumer, 0, 0) != 0) {
         perror("Failed to initialize semaphores");
         exit(EXIT_FAILURE);
     }
@@ -84,14 +84,14 @@ void* producer_thread(void* arg) {
             printf("Producer %d: failed to load %d || Amount in store: %d\n", thread_index, item, taken);
             producer_write_to_file(log_file_name, item, saved, taken);
             sleep(timeout);
-            someone_waits_on_producer++;
-            if (someone_waits_on_consumer > 0) {
-                sem_post(&store -> consumer_ready);
+            is_producer_waiting++;
+            if (is_consumer_waiting > 0) {
+                sem_post(&store -> consumer);
             } else {
                 sem_post(&store->mutex);
             }
-            sem_wait(&store->producer_ready);
-            someone_waits_on_producer--;
+            sem_wait(&store->producer);
+            is_producer_waiting--;
             taken = read_store_state(store->file);
             if (taken + item > store->size) {
                 sem_post(&store->mutex);
@@ -105,8 +105,8 @@ void* producer_thread(void* arg) {
         printf("Producer %d: loaded %d || Amount in store: %d\n", thread_index, item, taken + item);
         producer_write_to_file(log_file_name, item, saved, taken + item);
         sleep(timeout);
-        if (someone_waits_on_consumer > 0) {
-            sem_post(&store->consumer_ready);
+        if (is_consumer_waiting > 0) {
+            sem_post(&store->consumer);
         } else {
             sem_post(&store->mutex);
         }
@@ -148,14 +148,14 @@ void* consumer_thread(void* arg) {
             printf("Consumer %d: failed to consume %d || Amount in store: %d\n", thread_index, to_be_consumed, taken);
             consumer_write_to_file(log_file_name, to_be_consumed, saved, taken);
             sleep(timeout);
-            someone_waits_on_consumer++;
-            if (someone_waits_on_producer > 0) {
-                sem_post(&store->producer_ready);
+            is_consumer_waiting++;
+            if (is_producer_waiting > 0) {
+                sem_post(&store->producer);
             } else {
                 sem_post(&store->mutex);
             }
-            sem_wait(&store->consumer_ready);
-            someone_waits_on_consumer--;
+            sem_wait(&store->consumer);
+            is_consumer_waiting--;
             taken = read_store_state(store->file);
             if (taken < to_be_consumed) {
                 sem_post(&store->mutex);
@@ -169,8 +169,8 @@ void* consumer_thread(void* arg) {
         write_store_state(store->file, taken - to_be_consumed);
         printf("Consumer %d: consumes %d || Amount in store: %d\n", thread_index, to_be_consumed, taken - to_be_consumed);
         sleep(timeout);
-        if (someone_waits_on_producer > 0) {
-            sem_post(&store->producer_ready);
+        if (is_producer_waiting > 0) {
+            sem_post(&store->producer);
         } else {
             sem_post(&store->mutex);
         }
@@ -238,7 +238,7 @@ int main(int argc, char const *argv[]) {
         pthread_join(consumers[i], NULL);
     }
     sem_destroy(&store.mutex);
-    sem_destroy(&store.producer_ready);
-    sem_destroy(&store.consumer_ready);
+    sem_destroy(&store.producer);
+    sem_destroy(&store.consumer);
     return 0;
 }
