@@ -81,15 +81,23 @@ void* producer_thread(void* arg) {
         producer_write_try_info(log_file_name, item);
         sleep(timeout);
 
-        if (store->size - taken < item) {
+        if (store->size - taken < item || taken > store->size / 2) {
             printf("Producer %d: failed to load %d || Amount in store: %d\n", thread_index, item, taken);
             producer_write_to_file(log_file_name, item, saved, taken);
             sleep(timeout);
             is_producer_waiting++;
-            if (is_consumer_waiting > 0) {
-                sem_post(&store -> consumer);
+            if (taken > store->size / 2) {
+                if (is_consumer_waiting > 0) {
+                    sem_post(&store -> consumer);
+                } else {
+                    sem_post(&store->mutex);
+                }
             } else {
-                sem_post(&store->mutex);
+                if (is_producer_waiting - 1 > 0) {
+                    sem_post(&store->producer);
+                } else {
+                    sem_post(&store->mutex);
+                }
             }
             sem_wait(&store->producer);
             is_producer_waiting--;
@@ -150,15 +158,23 @@ void* consumer_thread(void* arg) {
         consumer_write_try_info(log_file_name, to_be_consumed);
         sleep(timeout);
 
-        if (taken < to_be_consumed) {
+        if (taken < to_be_consumed || taken <= store->size / 2) {
             printf("Consumer %d: failed to consume %d || Amount in store: %d\n", thread_index, to_be_consumed, taken);
             consumer_write_to_file(log_file_name, to_be_consumed, saved, taken);
             sleep(timeout);
             is_consumer_waiting++;
-            if (is_producer_waiting > 0) {
-                sem_post(&store->producer);
+            if (taken > store->size / 2) {
+                if (is_consumer_waiting - 1 > 0) {
+                    sem_post(&store -> consumer);
+                } else {
+                    sem_post(&store->mutex);
+                }
             } else {
-                sem_post(&store->mutex);
+                if (is_producer_waiting > 0) {
+                    sem_post(&store->producer);
+                } else {
+                    sem_post(&store->mutex);
+                }
             }
             sem_wait(&store->consumer);
             is_consumer_waiting--;
