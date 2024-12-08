@@ -95,7 +95,11 @@ void* producer_thread(void* arg) {
             is_producer_waiting--;
             taken = read_store_state(store->file);
             if (taken + item > store->size) {
-                sem_post(&store->mutex);
+                if (is_consumer_waiting > 0) {
+                    sem_post(&store->consumer);
+                } else {
+                    sem_post(&store->mutex);
+                }
                 sleep(timeout);
                 continue;
             }
@@ -160,7 +164,11 @@ void* consumer_thread(void* arg) {
             is_consumer_waiting--;
             taken = read_store_state(store->file);
             if (taken < to_be_consumed) {
-                sem_post(&store->mutex);
+                if (is_producer_waiting > 0) {
+                    sem_post(&store->producer);
+                } else {
+                    sem_post(&store->mutex);
+                }
                 sleep(timeout);
                 continue;
             }
