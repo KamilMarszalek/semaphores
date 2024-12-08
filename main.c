@@ -126,10 +126,18 @@ void* producer_thread(void* arg) {
         printf("Producer %d: loaded %d || Amount in store: %d\n", thread_index, item, taken + item);
         producer_write_to_file(log_file_name, item, saved, taken + item);
         sleep(timeout);
-        if (is_consumer_waiting > 0) {
-            sem_post(&store->consumer);
+        if  (taken + item > store->size / 2) {
+            if (is_consumer_waiting > 0) {
+                sem_post(&store->consumer);
+            } else {
+                sem_post(&store->mutex);
+            }
         } else {
-            sem_post(&store->mutex);
+            if (is_producer_waiting > 0) {
+                sem_post(&store->producer);
+            } else {
+                sem_post(&store->mutex);
+            }
         }
         sleep(timeout);
     }
@@ -211,10 +219,18 @@ void* consumer_thread(void* arg) {
         write_store_state(store->file, taken - to_be_consumed);
         printf("Consumer %d: consumes %d || Amount in store: %d\n", thread_index, to_be_consumed, taken - to_be_consumed);
         sleep(timeout);
-        if (is_producer_waiting > 0) {
-            sem_post(&store->producer);
+        if (taken - to_be_consumed <= store->size / 2) {
+            if (is_producer_waiting > 0) {
+                sem_post(&store->producer);
+            } else {
+                sem_post(&store->mutex);
+            }
         } else {
-            sem_post(&store->mutex);
+            if (is_consumer_waiting > 0) {
+                sem_post(&store->consumer);
+            } else {
+                sem_post(&store->mutex);
+            }
         }
         sleep(timeout);
         
@@ -223,6 +239,7 @@ void* consumer_thread(void* arg) {
 }
 
 int main(int argc, char const *argv[]) {
+    srand(time(NULL));
     if (argc != 9) {
         printf("Usage: %s <number of producers> <number of consumers> <begin> <end> <begin> <end> <capacity> <timeout>\n", argv[0]);
         return 1;
