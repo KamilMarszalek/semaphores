@@ -78,6 +78,7 @@ void* producer_thread(void* arg) {
         int taken = read_store_state(store->file);
         sleep(timeout);
         printf("Producer %d: tries to load: %d\n", thread_index, item);
+        producer_write_try_info(log_file_name, item);
         sleep(timeout);
 
         if (store->size - taken < item) {
@@ -142,6 +143,7 @@ void* consumer_thread(void* arg) {
         int taken = read_store_state(store->file);
         
         printf("Consumer %d: tries to consume: %d\n", thread_index, to_be_consumed);
+        consumer_write_try_info(log_file_name, to_be_consumed);
         sleep(timeout);
 
         if (taken < to_be_consumed) {

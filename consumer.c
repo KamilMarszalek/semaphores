@@ -22,3 +22,9 @@ void consumer_write_cons_info(char *file_name, int item) {
     fprintf(file, "Consumed: %d\n", item);
     fclose(file);
 }
+
+void consumer_write_try_info(char *file_name, int item) {
+    FILE *file = fopen(file_name, "a");
+    fprintf(file, "Trying to consume: %d\n", item);
+    fclose(file);
+}

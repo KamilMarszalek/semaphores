@@ -9,4 +9,5 @@ struct producer
 int produce(struct producer *self);
 void producer_write_to_file(char* file_name, int item, int status, int state_of_store);
 void producer_write_prod_info(char* file_name, int item);
+void producer_write_try_info(char* file_name, int item);
 #endif
