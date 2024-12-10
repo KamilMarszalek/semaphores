@@ -198,7 +198,7 @@ int main(int argc, char const *argv[]) {
     struct producer prod = {a, b};
     struct consumer cons = {c, d};
 
-    for (int i = 0; i < n; i++) {
+    for (int i = 0; i < n; ++i) {
         void** args = malloc(4 * sizeof(void*));
         args[0] = &store;
         args[1] = &prod;
@@ -211,7 +211,7 @@ int main(int argc, char const *argv[]) {
         pthread_create(&producers[i], NULL, producer_thread, args);
     }
 
-    for (int i = 0; i < m; i++) {
+    for (int i = 0; i < m; ++i) {
         void** args = malloc(4 * sizeof(void*));
         args[0] = &store;
         args[1] = &cons;
@@ -224,11 +224,11 @@ int main(int argc, char const *argv[]) {
         pthread_create(&consumers[i], NULL, consumer_thread, args);
     }
 
-    for (int i = 0; i < n; i++) {
+    for (int i = 0; i < n; ++i) {
         pthread_join(producers[i], NULL);
     }
 
-    for (size_t i = 0; i < m; i++) {
+    for (size_t i = 0; i < m; ++i) {
         pthread_join(consumers[i], NULL);
     }
     sem_destroy(&store.mutex);
