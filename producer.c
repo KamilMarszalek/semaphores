@@ -19,12 +19,12 @@ void producer_write_to_file(char *file_name, int item, int status, int state_of_
 
 void producer_write_prod_info(char *file_name, int item) {
     FILE *file = fopen(file_name, "a");
-    fprintf(file, "Produced: %d\n", item);
+    fprintf(file, "Generated: %d\n", item);
     fclose(file);
 }
 
 void producer_write_try_info(char *file_name, int item) {
     FILE *file = fopen(file_name, "a");
-    fprintf(file, "Trying to produce: %d\n", item);
+    fprintf(file, "Trying to put: %d\n", item);
     fclose(file);
 }

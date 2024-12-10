@@ -19,12 +19,12 @@ void consumer_write_to_file(char *file_name, int item, int status, int state_of_
 
 void consumer_write_cons_info(char *file_name, int item) {
     FILE *file = fopen(file_name, "a");
-    fprintf(file, "Consumed: %d\n", item);
+    fprintf(file, "Generated: %d\n", item);
     fclose(file);
 }
 
 void consumer_write_try_info(char *file_name, int item) {
     FILE *file = fopen(file_name, "a");
-    fprintf(file, "Trying to consume: %d\n", item);
+    fprintf(file, "Trying to take: %d\n", item);
     fclose(file);
 }
