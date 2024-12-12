@@ -89,7 +89,7 @@ void* producer_thread(void* arg) {
         } else {
             printf("Producer %d: failed to load %d || Amount in store: %d\n", thread_index, item, taken);
             producer_write_to_file(log_file_name, item, saved, taken);
-            tries++;
+            ++tries;
             sleep(timeout);
         }
         sem_post(&store->mutex);
@@ -162,7 +162,8 @@ void* consumer_thread(void* arg) {
                 sem_post(&store->consumer);
             }
         } else {
-            if (tries >= 3) {
+            if (tries >= 2) {
+                tries = 0;
                 sem_post(&store->producer);
             } else {
                 sem_post(&store->consumer);
