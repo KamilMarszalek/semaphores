@@ -78,16 +78,16 @@ void* producer_thread(void* arg) {
         sem_wait(&store->mutex);
         int taken = read_store_state(store->file);
         sleep(timeout);
-        // printf("Producer %d: tries to load: %d\n", thread_index, item);
+        printf("Producer %d: tries to load: %d\n", thread_index, item);
         try_written = 1;
         producer_write_try_info(log_file_name, item);
         sleep(timeout);
 
-        if (store->size - taken < item || taken > store->size / 2) {
-            // printf("Producer %d: failed to load %d || Amount in store: %d\n", thread_index, item, taken);
+        if (store->size - taken < item) {
+            printf("Producer %d: failed to load %d || Amount in store: %d\n", thread_index, item, taken);
             producer_write_to_file(log_file_name, item, saved, taken);
             sleep(timeout);
-            is_producer_waiting++;
+            ++is_producer_waiting;
             if (taken > store->size / 2) {
                 if (is_consumer_waiting > 0) {
                     sem_post(&store -> consumer);
@@ -102,8 +102,9 @@ void* producer_thread(void* arg) {
                 }
             }
             sem_wait(&store->producer);
-            is_producer_waiting--;
+            --is_producer_waiting;
             try_written = 0;
+            sleep(timeout);
             taken = read_store_state(store->file);
             if (taken + item > store->size) {
                 if (is_consumer_waiting > 0) {
@@ -116,14 +117,14 @@ void* producer_thread(void* arg) {
             }
         }
         if (!try_written) {
-            // printf("Producer %d: tries to load: %d\n", thread_index, item);
+            printf("Producer %d: tries to load: %d\n", thread_index, item);
             producer_write_try_info(log_file_name, item);
             sleep(timeout);
         }
         taken = read_store_state(store->file);
         saved = 1;
         write_store_state(store->file, taken + item);
-        // printf("Producer %d: loaded %d || Amount in store: %d\n", thread_index, item, taken + item);
+        printf("Producer %d: loaded %d || Amount in store: %d\n", thread_index, item, taken + item);
         producer_write_to_file(log_file_name, item, saved, taken + item);
         sleep(timeout);
         if  (taken + item > store->size / 2) {
@@ -171,16 +172,16 @@ void* consumer_thread(void* arg) {
         sem_wait(&store->mutex);
         int taken = read_store_state(store->file);
         
-        // printf("Consumer %d: tries to consume: %d\n", thread_index, to_be_consumed);
+        printf("Consumer %d: tries to consume: %d\n", thread_index, to_be_consumed);
         consumer_write_try_info(log_file_name, to_be_consumed);
         try_written = 1;
         sleep(timeout);
 
-        if (taken < to_be_consumed || taken <= store->size / 2) {
-            // printf("Consumer %d: failed to consume %d || Amount in store: %d\n", thread_index, to_be_consumed, taken);
+        if (taken < to_be_consumed) {
+            printf("Consumer %d: failed to consume %d || Amount in store: %d\n", thread_index, to_be_consumed, taken);
             consumer_write_to_file(log_file_name, to_be_consumed, saved, taken);
             sleep(timeout);
-            is_consumer_waiting++;
+            ++is_consumer_waiting;
             if (taken > store->size / 2) {
                 if (is_consumer_waiting - 1 > 0) {
                     sem_post(&store -> consumer);
@@ -195,8 +196,8 @@ void* consumer_thread(void* arg) {
                 }
             }
             sem_wait(&store->consumer);
-            is_consumer_waiting--;
-            try_written = 0;
+            --is_consumer_waiting;
+            try_written = 1;
             taken = read_store_state(store->file);
             if (taken < to_be_consumed) {
                 if (is_producer_waiting > 0) {
@@ -209,7 +210,7 @@ void* consumer_thread(void* arg) {
             }
         }
         if (!try_written) {
-            // printf("Consumer %d: tries to consume: %d\n", thread_index, to_be_consumed);
+            printf("Consumer %d: tries to consume: %d\n", thread_index, to_be_consumed);
             consumer_write_try_info(log_file_name, to_be_consumed);
             sleep(timeout);
         }
@@ -217,7 +218,7 @@ void* consumer_thread(void* arg) {
         saved = 1;
         consumer_write_to_file(log_file_name, to_be_consumed, saved, taken - to_be_consumed);
         write_store_state(store->file, taken - to_be_consumed);
-        // printf("Consumer %d: consumes %d || Amount in store: %d\n", thread_index, to_be_consumed, taken - to_be_consumed);
+        printf("Consumer %d: consumes %d || Amount in store: %d\n", thread_index, to_be_consumed, taken - to_be_consumed);
         sleep(timeout);
         if (taken - to_be_consumed <= store->size / 2) {
             if (is_producer_waiting > 0) {
