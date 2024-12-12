@@ -91,12 +91,16 @@ void* producer_thread(void* arg) {
             if (taken > store->size / 2) {
                 if (is_consumer_waiting > 0) {
                     sem_post(&store -> consumer);
+                } else if (is_producer_waiting - 1 > 0) {
+                    sem_post(&store->producer);
                 } else {
                     sem_post(&store->mutex);
                 }
             } else {
                 if (is_producer_waiting - 1 > 0) {
                     sem_post(&store->producer);
+                } else if (is_consumer_waiting > 0) {
+                    sem_post(&store->consumer);
                 } else {
                     sem_post(&store->mutex);
                 }
@@ -185,12 +189,16 @@ void* consumer_thread(void* arg) {
             if (taken > store->size / 2) {
                 if (is_consumer_waiting - 1 > 0) {
                     sem_post(&store -> consumer);
+                } else if (is_producer_waiting > 0) {
+                    sem_post(&store->producer);
                 } else {
                     sem_post(&store->mutex);
                 }
             } else {
                 if (is_producer_waiting > 0) {
                     sem_post(&store->producer);
+                } else if (is_consumer_waiting - 1 > 0) {
+                    sem_post(&store->consumer);
                 } else {
                     sem_post(&store->mutex);
                 }
