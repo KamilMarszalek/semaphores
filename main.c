@@ -63,7 +63,7 @@ void* producer_thread(void* arg) {
     int tries = 0;
     int saved = 0;
     int item = produce(producer);
-    printf("Producer %d: generated: %d\n", thread_index, item);
+    // printf("Producer %d: generated: %d\n", thread_index, item);
     producer_write_prod_info(log_file_name, item);
 
     while (1) {
@@ -100,8 +100,9 @@ void* producer_thread(void* arg) {
                 sem_post(&store->producer);
             }
         } else {
-            if (tries >= 3) {
+            if (tries >= 2) {
                 sem_post(&store->consumer);
+                tries = 0;
             } else {
                 sem_post(&store->producer);
             }
@@ -125,7 +126,7 @@ void* consumer_thread(void* arg) {
     int tries = 0;
     int saved = 0;
     int to_be_consumed = consume(consumer);
-    printf("Consumer %d: generated: %d\n", thread_index, to_be_consumed);
+    // printf("Consumer %d: generated: %d\n", thread_index, to_be_consumed);
     consumer_write_cons_info(log_file_name, to_be_consumed);
     
     while (1) {
@@ -156,15 +157,15 @@ void* consumer_thread(void* arg) {
         }
         sem_post(&store->mutex);
         if (saved) {
-            if (taken - to_be_consumed < store->size / 2) {
+            if (taken - to_be_consumed <= store->size / 2) {
                 sem_post(&store->producer);
             } else {
                 sem_post(&store->consumer);
             }
         } else {
             if (tries >= 2) {
-                tries = 0;
                 sem_post(&store->producer);
+                tries = 0;
             } else {
                 sem_post(&store->consumer);
             }
