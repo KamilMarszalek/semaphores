@@ -269,7 +269,7 @@ int main(int argc, char const *argv[]) {
     int timeout = atoi(argv[8]);
 
     struct store store;
-    store_init(&store, "store.txt", k);
+    store_init(&store, "warehouse.txt", k);
     all = n + m;
     pthread_t producers[n];
     pthread_t consumers[m];
