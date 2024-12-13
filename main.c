@@ -104,7 +104,7 @@ void* producer_thread(void* arg) {
                 } else if (all > 0) {
                     sem_post(&store->mutex);
                 } else {
-                    sem_post(&store->producer);
+                    sem_post(&store->consumer);
                 }
             }
             sem_wait(&store->producer);
@@ -204,7 +204,7 @@ void* consumer_thread(void* arg) {
                 } else if (all > 0) {
                     sem_post(&store->mutex);
                 } else {
-                    sem_post(&store->producer);
+                    sem_post(&store->consumer);
                 }
             }
             sem_wait(&store->consumer);
